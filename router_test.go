@@ -2,7 +2,9 @@ package glass
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -13,8 +15,9 @@ type TestStruct struct {
 
 var str string
 
-func (t *TestStruct) TestFunc(a string) {
+func (t *TestStruct) TestFunc(a string) string {
 	str = a
+	return a
 }
 
 var loginCalled = false
@@ -23,10 +26,20 @@ func (t *TestStruct) Login() {
 	loginCalled = true
 }
 
+var privateCalled = false
+
+func (t *TestStruct) private() {
+	privateCalled = true
+}
+
 var total int32
 
 func (t *TestStruct) Sum(a, b int32) {
 	total = a + b
+}
+
+func (t *TestStruct) HelloWorld(w http.ResponseWriter) {
+	fmt.Fprintf(w, "Hello, World!")
 }
 
 func TestRouter(t *testing.T) {
@@ -44,7 +57,12 @@ func TestRouter(t *testing.T) {
 
 	pingRoute(r, "/Login")
 	if !loginCalled {
-		t.Error("/Login did not call Login()")
+		t.Error("/Login did not call Login()!")
+	}
+
+	pingRoute(r, "/private")
+	if privateCalled {
+		t.Error("/private called private method private()!")
 	}
 
 	for i := 0; i < 10; i++ {
@@ -58,6 +76,12 @@ func TestRouter(t *testing.T) {
 			t.Error("Sum(a, b int) did not sum propperly")
 		}
 	}
+
+	str := pingRoute(r, "/HelloWorld")
+	if str != "Hello, World!" {
+		t.Error("HelloWorld() wrote " + str)
+	}
+
 }
 
 func testRoute(s string, r *Router, t *testing.T) {
@@ -69,7 +93,7 @@ func testRoute(s string, r *Router, t *testing.T) {
 	}
 }
 
-func pingRoute(ro *Router, s string) {
+func pingRoute(ro *Router, s string) string {
 
 	w := httptest.NewRecorder()
 
@@ -78,4 +102,7 @@ func pingRoute(ro *Router, s string) {
 
 	ro.router.ServeHTTP(w, r)
 
+	str, _ := ioutil.ReadAll(w.Body)
+
+	return string(str)
 }

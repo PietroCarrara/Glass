@@ -2,7 +2,6 @@ package glass
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -23,8 +22,14 @@ type Function struct {
 // Arg represents a single
 // argument passed to a Function
 type Arg struct {
-	typ  reflect.Type
-	name string
+	typ          reflect.Type
+	name         string
+	appearsInURL bool
+}
+
+type returnDealer struct {
+	retIndex int
+	handler  func(http.ResponseWriter, *http.Request, *reflect.Value)
 }
 
 // BuildRoute builds the url to this function
@@ -32,7 +37,9 @@ func (f *Function) BuildRoute() string {
 	res := "/" + f.name
 
 	for _, arg := range f.args {
-		res += "/{" + arg.name + "}"
+		if arg.appearsInURL {
+			res += "/{" + arg.name + "}"
+		}
 	}
 
 	return res
@@ -46,11 +53,20 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 	var funcs []func(http.ResponseWriter, *http.Request, *reflect.Value)
 
 	for _, arg := range f.args {
+
 		switch arg.typ {
 		case reflect.TypeOf("string"):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
 				vars := mux.Vars(r)
 				*v = reflect.ValueOf(vars[arg.name])
+			})
+		case reflect.TypeOf(&http.Request{}):
+			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				*v = reflect.ValueOf(r)
+			})
+		case reflect.TypeOf((*http.ResponseWriter)(nil)).Elem():
+			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				*v = reflect.ValueOf(w)
 			})
 		case reflect.TypeOf(int64(1)):
 			funcs = append(funcs, castInt64(arg))
@@ -63,12 +79,48 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 		case reflect.TypeOf(int(1)):
 			funcs = append(funcs, castInt(arg))
 		default:
-			log.Fatalf("Argument of type %v not supported!", arg.typ)
+			str := fmt.Sprintf("Argument of type %v not supported!", arg.typ)
+			panic(str)
+		}
+	}
+
+	outs := f.typ.Type.NumOut()
+
+	if outs > 2 {
+		panic(f.name + " returns too many values!")
+	}
+
+	var retDealers [2]*returnDealer
+	for i := 0; i < outs; i++ {
+		switch f.typ.Type.Out(i) {
+		case reflect.TypeOf("string"):
+			if retDealers[1] != nil {
+				panic("Multiple strings returned by " + f.name)
+			}
+			retDealers[1] = &returnDealer{i, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				str := v.Interface().(string)
+				if str != "" {
+					w.Write([]byte(v.Interface().(string)))
+				}
+			}}
+		case reflect.TypeOf(http.StatusAccepted):
+			if retDealers[0] != nil {
+				panic("Multiple status codes returned by " + f.name)
+			}
+			retDealers[0] = &returnDealer{i, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				code := v.Interface().(int)
+				if code > 0 {
+					w.WriteHeader(code)
+				}
+			}}
+		default:
+			panic("Return type not supported in " + f.name + "!")
 		}
 	}
 
 	// Call all loaders
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		params := make([]reflect.Value, len(funcs)+1)
 
 		params[0] = reflect.ValueOf(f.Parent.origin)
@@ -77,7 +129,13 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 			funcs[i](w, r, &params[i+1])
 		}
 
-		f.typ.Func.Call(params)
+		rets := f.typ.Func.Call(params)
+
+		for i := 0; i < len(retDealers); i++ {
+			if retDealers[i] != nil {
+				retDealers[i].handler(w, r, &rets[retDealers[i].retIndex])
+			}
+		}
 	}
 }
 
@@ -94,6 +152,12 @@ func newFunction(meth reflect.Method) (*Function, error) {
 		var arg Arg
 		arg.name = fmt.Sprintf("param-%d", i)
 		arg.typ = meth.Type.In(i)
+
+		arg.appearsInURL = arg.typ.Kind() != reflect.Struct && arg.typ.Kind() != reflect.Interface
+		if arg.typ.Kind() == reflect.Ptr {
+			ele := arg.typ.Elem()
+			arg.appearsInURL = ele.Kind() != reflect.Struct && ele.Kind() != reflect.Interface
+		}
 
 		res.args = append(res.args, &arg)
 	}
