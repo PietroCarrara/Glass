@@ -21,14 +21,24 @@ type Router struct {
 // using it's methods as http routes
 func NewRouter(r interface{}) (*Router, error) {
 
+	return newRouter(r, nil)
+}
+
+func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
+
+	typ := reflect.ValueOf(r)
+
 	router := &Router{
-		origin: r,
+		origin: typ.Interface(),
+	}
+	if ro != nil {
+		router.router = ro
+	} else {
+		router.router = mux.NewRouter()
 	}
 
-	typ := reflect.TypeOf(r)
-
 	for i := 0; i < typ.NumMethod(); i++ {
-		meth := typ.Method(i)
+		meth := typ.Type().Method(i)
 
 		route, err := newFunction(meth)
 
@@ -40,12 +50,23 @@ func NewRouter(r interface{}) (*Router, error) {
 		router.routes = append(router.routes, route)
 	}
 
-	router.router = mux.NewRouter()
+	structure := typ
+	for structure.Kind() != reflect.Struct {
+		structure = structure.Elem()
+	}
+
+	for i := 0; i < structure.Type().NumField(); i++ {
+		field := structure.Type().Field(i)
+		val := structure.Field(i).Interface()
+		newRouter(val, router.router.PathPrefix("/"+field.Name).Subrouter())
+	}
+
 	for _, function := range router.routes {
 		router.router.HandleFunc(function.BuildRoute(), function.BuildCaller())
 	}
 
 	return router, nil
+
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {

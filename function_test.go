@@ -1,11 +1,13 @@
 package glass
 
 import (
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
-type myStruct struct{}
+type myStruct struct{ User User }
 
 func (m *myStruct) Hello() string { return "world!" }
 
@@ -14,6 +16,12 @@ func (m *myStruct) World() {}
 func (m *myStruct) Login(user, pass string) {}
 
 func (m *myStruct) Buy(prodID int, w http.ResponseWriter) {}
+
+type User struct{}
+
+func (u User) Login() string {
+	return "Success"
+}
 
 type otherStruct struct{}
 
@@ -45,6 +53,15 @@ func TestFunctionRoute(t *testing.T) {
 		t.Error("Buy(prodID int, w http.ResponseWriter)", routes[0].BuildRoute())
 	}
 
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/User/Login", nil)
+
+	r.ServeHTTP(w, req)
+
+	res, _ := ioutil.ReadAll(w.Body)
+	if string(res) != "Success" {
+		t.Error("/User/Login did not return \"Success\"!")
+	}
 }
 
 func TestExcessReturn(t *testing.T) {
