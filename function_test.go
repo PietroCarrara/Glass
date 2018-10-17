@@ -21,6 +21,8 @@ func (m *myStruct) Login(user, pass string) {}
 
 func (m *myStruct) Buy(prodID int, w http.ResponseWriter) {}
 
+func (m *myStruct) TestPostPOST() string { return "world!" }
+
 type User struct {
 	Info info
 }
@@ -59,7 +61,7 @@ func TestFunctionRoute(t *testing.T) {
 		t.Error("Hello() returns", routes[1].BuildRoute())
 	}
 
-	if routes[3].BuildRoute() != "/World" {
+	if routes[4].BuildRoute() != "/World" {
 		t.Error("World() returns", routes[3].BuildRoute())
 	}
 
@@ -97,6 +99,15 @@ func TestFunctionRoute(t *testing.T) {
 
 	if w.Code != 404 {
 		t.Error("/user/Login was mapped!")
+	}
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/TestPost", nil)
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != 405 {
+		t.Error("/TestPost did not send 405!")
 	}
 
 	NewRouter(&myStruct{})

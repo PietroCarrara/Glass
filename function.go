@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -12,11 +13,12 @@ import (
 // Function represents a function
 // for a router
 type Function struct {
+	Name   string
+	Parent *Router
+
 	typ  reflect.Method
 	args []*Arg
 	name string
-
-	Parent *Router
 }
 
 // Arg represents a single
@@ -34,7 +36,7 @@ type returnDealer struct {
 
 // BuildRoute builds the url to this function
 func (f *Function) BuildRoute() string {
-	res := "/" + f.name
+	res := "/" + f.Name
 
 	for _, arg := range f.args {
 		if arg.appearsInURL {
@@ -144,6 +146,13 @@ func newFunction(meth reflect.Method) (*Function, error) {
 	res := &Function{
 		typ:  meth,
 		name: meth.Name,
+		Name: meth.Name,
+	}
+
+	for _, meth := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE"} {
+		if strings.Contains(res.Name, meth) {
+			res.Name = strings.Replace(res.Name, meth, "", -1)
+		}
 	}
 
 	// For each input the method has... (skipping the struct)

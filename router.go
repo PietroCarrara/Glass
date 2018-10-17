@@ -73,7 +73,20 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 	}
 
 	for _, function := range router.routes {
-		router.router.HandleFunc(function.BuildRoute(), function.BuildCaller())
+
+		methods := []string{}
+
+		for _, meth := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE"} {
+			if strings.Contains(function.name, meth) {
+				methods = append(methods, meth)
+			}
+		}
+
+		route := router.router.HandleFunc(function.BuildRoute(), function.BuildCaller())
+
+		if len(methods) > 0 {
+			route.Methods(methods...)
+		}
 	}
 
 	return router, nil
