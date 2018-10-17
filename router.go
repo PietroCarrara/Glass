@@ -3,6 +3,7 @@ package glass
 import (
 	"net/http"
 	"reflect"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -52,11 +53,21 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 
 	structure := typ
 	for structure.Kind() != reflect.Struct {
-		structure = structure.Elem()
+		if structure.Interface() != nil {
+			structure = structure.Elem()
+		} else {
+			panic("Nil value was passed to a router!")
+		}
 	}
 
 	for i := 0; i < structure.Type().NumField(); i++ {
 		field := structure.Type().Field(i)
+
+		// If is private...
+		if strings.Title(field.Name) != field.Name {
+			continue
+		}
+
 		val := structure.Field(i).Interface()
 		newRouter(val, router.router.PathPrefix("/"+field.Name).Subrouter())
 	}

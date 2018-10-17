@@ -1,13 +1,17 @@
 package glass
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-type myStruct struct{ User User }
+type myStruct struct {
+	User *User
+	usr  User
+}
 
 func (m *myStruct) Hello() string { return "world!" }
 
@@ -17,11 +21,17 @@ func (m *myStruct) Login(user, pass string) {}
 
 func (m *myStruct) Buy(prodID int, w http.ResponseWriter) {}
 
-type User struct{}
+type User struct {
+	Info info
+}
 
-func (u User) Login() string {
+func (u *User) Login() string {
 	return "Success"
 }
+
+type info struct{}
+
+func (i info) Test() {}
 
 type otherStruct struct{}
 
@@ -29,7 +39,15 @@ func (o *otherStruct) IShouldNotWork() (int, int, int) { return 1, 2, 3 }
 
 func TestFunctionRoute(t *testing.T) {
 
-	r, err := NewRouter(&myStruct{})
+	// Catch error for nil field
+	// on router
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("glass did not panic when a nil struct was passed!")
+		}
+	}()
+
+	r, err := NewRouter(&myStruct{User: &User{}})
 
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +80,26 @@ func TestFunctionRoute(t *testing.T) {
 	if string(res) != "Success" {
 		t.Error("/User/Login did not return \"Success\"!")
 	}
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/User/Info/Test", nil)
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Error(fmt.Sprintf("/User/Info/Test returned status code %d!", w.Code))
+	}
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/user/Login", nil)
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != 404 {
+		t.Error("/user/Login was mapped!")
+	}
+
+	NewRouter(&myStruct{})
 }
 
 func TestExcessReturn(t *testing.T) {
