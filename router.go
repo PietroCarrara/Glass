@@ -1,10 +1,8 @@
 package glass
 
 import (
-	"context"
 	"net/http"
 	"reflect"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -50,19 +48,6 @@ func NewRouter(r interface{}) (*Router, error) {
 	return router, nil
 }
 
-func (r *Router) ListenAndServe(address string) {
-	r.server = &http.Server{
-		Addr:    address,
-		Handler: r.router,
-	}
-
-	r.server.ListenAndServe()
-}
-
-func (r *Router) Stop(wait time.Duration) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-
-	r.server.Shutdown(ctx)
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.router.ServeHTTP(w, req)
 }
