@@ -63,7 +63,7 @@ func TestStore(t *testing.T) {
 	tpl.Execute(buffer, items)
 
 	if res != buffer.String() {
-		t.Error("The home page did not render propperly!")
+		t.Error("The home page did not render properly!")
 	}
 
 	// Checking each product
@@ -79,7 +79,7 @@ func TestStore(t *testing.T) {
 		tpl.Execute(buffer, items[i])
 
 		if res != buffer.String() {
-			t.Error("The page for product", i, "did not render propperly!")
+			t.Error("The page for product", i, "did not render properly!")
 		}
 
 		if w.Result().StatusCode != 42 {

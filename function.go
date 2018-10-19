@@ -149,7 +149,7 @@ func newFunction(meth reflect.Method) (*Function, error) {
 		Name: meth.Name,
 	}
 
-	for _, meth := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE"} {
+	for _, meth := range httpMethods {
 		if strings.Contains(res.Name, meth) {
 			res.Name = strings.Replace(res.Name, meth, "", -1)
 		}

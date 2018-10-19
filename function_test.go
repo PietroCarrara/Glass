@@ -1,7 +1,6 @@
 package glass
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -89,7 +88,7 @@ func TestFunctionRoute(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
-		t.Error(fmt.Sprintf("/User/Info/Test returned status code %d!", w.Code))
+		t.Errorf("/User/Info/Test returned status code %d!", w.Code)
 	}
 
 	w = httptest.NewRecorder()

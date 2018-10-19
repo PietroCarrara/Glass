@@ -73,11 +73,11 @@ func TestRouter(t *testing.T) {
 		pingRoute(r, u)
 
 		if total != a+b {
-			t.Error("Sum(a, b int) did not sum propperly")
+			t.Error("Sum(a, b int) did not sum properly")
 		}
 	}
 
-	str := pingRoute(r, "/HelloWorld")
+	str, _ := pingRoute(r, "/HelloWorld")
 	if str != "Hello, World!" {
 		t.Error("HelloWorld() wrote " + str)
 	}
@@ -93,7 +93,7 @@ func testRoute(s string, r *Router, t *testing.T) {
 	}
 }
 
-func pingRoute(ro *Router, s string) string {
+func pingRoute(ro *Router, s string) (string, http.Header) {
 
 	w := httptest.NewRecorder()
 
@@ -104,5 +104,5 @@ func pingRoute(ro *Router, s string) string {
 
 	str, _ := ioutil.ReadAll(w.Body)
 
-	return string(str)
+	return string(str), w.Header()
 }

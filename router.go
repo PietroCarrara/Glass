@@ -8,6 +8,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var httpMethods = []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE"}
+
 // Router registers a struct as
 // the main glass router
 type Router struct {
@@ -42,12 +44,30 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 		meth := typ.Type().Method(i)
 
 		route, err := newFunction(meth)
+		route.Parent = router
 
 		if err != nil {
 			return nil, err
 		}
 
-		route.Parent = router
+		switch route.Name {
+		case "Middleware":
+			routeFunc := route.BuildCaller()
+			router.router.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					routeFunc(w, r)
+					if w.Header().Get("Location") == "" {
+						next.ServeHTTP(w, r)
+					}
+				})
+			})
+			// Middleware shoud not
+			// be mapped to a route
+			continue
+		case "Index":
+			route.Name = ""
+		}
+
 		router.routes = append(router.routes, route)
 	}
 
@@ -76,7 +96,7 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 
 		methods := []string{}
 
-		for _, meth := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE"} {
+		for _, meth := range httpMethods {
 			if strings.Contains(function.name, meth) {
 				methods = append(methods, meth)
 			}
