@@ -51,7 +51,7 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 		}
 
 		switch route.Name {
-		case "Middleware":
+		case "/Middleware":
 			routeFunc := route.BuildCaller()
 			router.router.Use(func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +64,7 @@ func newRouter(r interface{}, ro *mux.Router) (*Router, error) {
 			// Middleware shoud not
 			// be mapped to a route
 			continue
-		case "Index":
+		case "/Index":
 			route.Name = ""
 		}
 

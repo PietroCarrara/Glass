@@ -36,12 +36,19 @@ type returnDealer struct {
 
 // BuildRoute builds the url to this function
 func (f *Function) BuildRoute() string {
-	res := "/" + f.Name
+
+	res := f.Name
 
 	for _, arg := range f.args {
 		if arg.appearsInURL {
 			res += "/{" + arg.name + "}"
 		}
+	}
+
+	// If we have nothing, make
+	// it at least a valid url
+	if res == "" {
+		res = "/"
 	}
 
 	return res
@@ -57,6 +64,12 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 	for _, arg := range f.args {
 
 		switch arg.typ {
+		case reflect.TypeOf(true):
+			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				vars := mux.Vars(r)
+				val, _ := strconv.ParseBool(vars[arg.name])
+				*v = reflect.ValueOf(val)
+			})
 		case reflect.TypeOf("string"):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
 				vars := mux.Vars(r)
@@ -146,7 +159,7 @@ func newFunction(meth reflect.Method) (*Function, error) {
 	res := &Function{
 		typ:  meth,
 		name: meth.Name,
-		Name: meth.Name,
+		Name: "/" + meth.Name,
 	}
 
 	for _, meth := range httpMethods {
