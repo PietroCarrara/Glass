@@ -68,13 +68,11 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 		switch arg.typ {
 		case reflect.TypeOf("string"):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
-				fmt.Println("string", arg)
 				vars := mux.Vars(r)
 				*v = reflect.ValueOf(vars[arg.name])
 			})
 		case reflect.TypeOf(true):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
-				fmt.Println("bool", arg)
 				vars := mux.Vars(r)
 				val, _ := strconv.ParseBool(vars[arg.name])
 				*v = reflect.ValueOf(val)
