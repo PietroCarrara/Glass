@@ -61,19 +61,23 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 
 	var funcs []func(http.ResponseWriter, *http.Request, *reflect.Value)
 
-	for _, arg := range f.args {
+	for _, _arg := range f.args {
+
+		arg := *_arg
 
 		switch arg.typ {
+		case reflect.TypeOf("string"):
+			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				fmt.Println("string", arg)
+				vars := mux.Vars(r)
+				*v = reflect.ValueOf(vars[arg.name])
+			})
 		case reflect.TypeOf(true):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
+				fmt.Println("bool", arg)
 				vars := mux.Vars(r)
 				val, _ := strconv.ParseBool(vars[arg.name])
 				*v = reflect.ValueOf(val)
-			})
-		case reflect.TypeOf("string"):
-			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
-				vars := mux.Vars(r)
-				*v = reflect.ValueOf(vars[arg.name])
 			})
 		case reflect.TypeOf(&http.Request{}):
 			funcs = append(funcs, func(w http.ResponseWriter, r *http.Request, v *reflect.Value) {
@@ -84,15 +88,15 @@ func (f *Function) BuildCaller() func(http.ResponseWriter, *http.Request) {
 				*v = reflect.ValueOf(w)
 			})
 		case reflect.TypeOf(int64(1)):
-			funcs = append(funcs, castInt64(arg))
+			funcs = append(funcs, castInt64(&arg))
 		case reflect.TypeOf(int32(1)):
-			funcs = append(funcs, castInt32(arg))
+			funcs = append(funcs, castInt32(&arg))
 		case reflect.TypeOf(int16(1)):
-			funcs = append(funcs, castInt16(arg))
+			funcs = append(funcs, castInt16(&arg))
 		case reflect.TypeOf(int8(1)):
-			funcs = append(funcs, castInt8(arg))
+			funcs = append(funcs, castInt8(&arg))
 		case reflect.TypeOf(int(1)):
-			funcs = append(funcs, castInt(arg))
+			funcs = append(funcs, castInt(&arg))
 		default:
 			str := fmt.Sprintf("Argument of type %v not supported!", arg.typ)
 			panic(str)
@@ -171,7 +175,7 @@ func newFunction(meth reflect.Method) (*Function, error) {
 	// For each input the method has... (skipping the struct)
 	for i := 1; i < meth.Type.NumIn(); i++ {
 
-		var arg Arg
+		arg := &Arg{}
 		arg.name = fmt.Sprintf("param-%d", i)
 		arg.typ = meth.Type.In(i)
 
@@ -181,7 +185,7 @@ func newFunction(meth reflect.Method) (*Function, error) {
 			arg.appearsInURL = ele.Kind() != reflect.Struct && ele.Kind() != reflect.Interface
 		}
 
-		res.args = append(res.args, &arg)
+		res.args = append(res.args, arg)
 	}
 
 	return res, nil
